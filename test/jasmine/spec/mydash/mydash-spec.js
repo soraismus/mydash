@@ -539,4 +539,28 @@ define (['mydash/mydash'], function (_) {
 
 	});
 
+	describe ("String Functions", function () {
+	  
+		describe ("concat", function () {
+		  it ("should concatenate multiple strings", function () {
+		    var ary = ['a', 'b', 'c'];
+				var result = _.concat (ary);
+				testDbl (toBeStr) (result);
+				testDbl (toEqual ('abc')) (result);
+			});
+		});
+
+		describe ("split", function () {
+		  it ("should split a string into an array", function () {
+		    var str = 'a,b,c,d,e';
+				var mrk = ',';
+				var result = _.split (mrk) (str);
+				testDbl (toBeAry) (result);
+				testDbl (toHaveLength (5)) (result);
+				testDbl (toEqual ('c')) (result [2]);
+			});
+		});
+
+	});
+
 });

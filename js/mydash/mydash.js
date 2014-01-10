@@ -147,7 +147,7 @@ define ([], function () {
 			val [(_.keys (val)) [idx]];
 	};
 
-	_.breakAtValue = (fn) => function (v) {
+	_.breakDown = (fn) => function (v) {
 		var arg = v, store = [];
 		function helper (val) {
 			if (val === _.stop) {
@@ -177,6 +177,10 @@ define ([], function () {
 
 	// aliases
 	_.compose2 = _.embed = _.rassoc = (fn1) => (fn2) => (val) => vowFn (fn1) (vowFn (fn2) (val));
+
+	_.concat = (ary) => _.reduceWith ('') (_.concat2) (_.vowAry (ary));
+
+	_.concat2 = (str1) => (str2) => StrProto.concat (_.vowStr (str1), _.vowStr (str2));
 
 	_.constant = (val) => () => val;
 
@@ -336,6 +340,8 @@ define ([], function () {
 		return result;
 	};
 
+	_.split = (mrk) => (str) => StrProto.split.call (_.vowStr (str), _.vowStr (mrk));
+
 	_.throwError = function (msg) {
 		throw new Error (msg);
 	};
@@ -350,6 +356,12 @@ define ([], function () {
 
 	// aliases
 	_.thunk2 = _.defer = (fn) => (val) => () => _.vowFn (fn) (val);
+
+	_.toLC = (str) => StrProto.toLowerCase.call (_.vowStr (str));
+
+	_.toUC = (str) => StrProto.toUpperCase.call (_.vowStr (str));
+
+	_.trim = (str) => StrProto.trim.call (_.vowStr (str));
 
 	_.vacant = (val) => _.isNull (val) || _.isUndefined (val) || _.isNaN (val);
 
@@ -400,11 +412,13 @@ define ([], function () {
 
 	_.atOn = _.flip (_.at);
 
-	_.composeDown = _.breakAtValue (_.compose);
+	_.callDown = _.breakDown (_.call);
 
-	_.pipeDown = _.breakAtValue (_.pipe);
+	_.composeDown = _.breakDown (_.compose);
 
-	_.thunkDown = _.breakAtValue (_.thunk2 (_.call));
+	_.pipeDown = _.breakDown (_.pipe);
+
+	_.thunkDown = _.breakDown (_.thunk2 (_.call));
 	
 	_.vowAry = _.vowWith (_.isArray) (aryMsg);
 
