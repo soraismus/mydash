@@ -6,6 +6,8 @@ define ([], function () {
 
 	var breaker = {};
 
+	_.stop = {};
+
 	// native js:
 	// isFinite, isNaN, keys, parseInt, parseFloat, values
 
@@ -35,9 +37,38 @@ define ([], function () {
     nativeKeys         = Object.keys,
     nativeBind         = FuncProto.bind;
 
+	var StrProto = String.prototype;
+
+	var
+		nativeCharAt = StrProto.charAt,
+		nativeConcat = StrProto.concat,
+		nativeContains = StrProto.contains,
+		nativeEndsWith = StrProto.endsWith,
+		nativeIndexOf = StrProto.indexOf,
+		nativeLastIndexOf = StrProto.lastIndexOf,
+		nativeMatch = StrProto.match,
+		nativeRepeat = StrProto.repeat,
+		nativeReplace = StrProto.replace,
+		nativeSearch = StrProto.search,
+		nativeSlice = StrProto.slice,
+		nativeSplit = StrProto.split,
+		nativeStartsWith = StrProto.startsWith,
+		nativeSubstr = StrProto.substr,
+		nativeSubstring = StrProto.substring,
+		nativeToLowerCase = StrProto.toLowerCase,
+		nativeToUpperCase = StrProto.toUpperCase,
+		nativeTrim = StrProto.trim;
+
+	var RegExpProto = RegExp.prototype;
+
+	var
+		nativeExec = RegExpProto.exec,
+		nativeTest = RegExpProto.test;
+
   var
 		aryMsg  = 'Invalid array',
 		boolMsg = 'Invalid boolean',
+		equalLengthMsg = 'Arrays should have equal length',
 		fnMsg   = 'Invalid function',
 		fullMsg = 'Invalid empty array or object',
 		idxMsg  = 'Invalid key or index',
@@ -103,6 +134,11 @@ define ([], function () {
     };
   }
 
+	var assign = (obj) => (key) => function (attr) {
+		obj [_.vowIdx (key)] = attr;
+		return obj;
+	};
+
 	_.at = (idx) => function (val) {
 		_.vowInt (idx)
 		_.vowObj (val);
@@ -111,26 +147,72 @@ define ([], function () {
 			val [(_.keys (val)) [idx]];
 	};
 
+	_.breakAtValue = (fn) => function (v) {
+		var arg = v, store = [];
+		function helper (val) {
+			if (val === _.stop) {
+				store.push (arg);
+				return _.vowFn (fn) (store);
+			} else {
+				store.push (arg);
+				arg = val;
+				return helper;
+			}
+		};
+		return helper;
+	};
+
+	// aliases
+	_.call = _.cascade = (ary) => _.reduceWith (_.vowFn (ary.shift ())) (_.call2) (ary);
+
 	// for trampolining thunks
-	_.call = (fn) => _.vowFn (fn) ();
+	_.call1 = (fn) => _.vowFn (fn) ();
+
+	// aliases
+	_.call2 = _.compose1 = _.pipe1 = (fn) => (val) => _.vowFn (fn) (val);
 
 	_.callOn = (arg) => (fn) => _.vowFn (fn) (arg);
 
-	_.cascade = function (ary) {
-		_.vowAry (ary);
-		_.vowFull (ary);
-		var fn = _.vowFn (ary.shift ());
-		return _.reduceWith (fn) ((memo) => (i) => _.vowFn (memo) (i)) (ary);
-	};
+	_.compose = (fns) => (val) => _.rreduceWith (val) (_.callOn) (fns);
+
+	// aliases
+	_.compose2 = _.embed = _.rassoc = (fn1) => (fn2) => (val) => vowFn (fn1) (vowFn (fn2) (val));
 
 	_.constant = (val) => () => val;
+
+	_.copy = function (val) {
+		(_.vow (! _.isObject (val) || _.isArray (val) || _.isHash (val))
+		 ('Only arrays and generic objects are permissible'));
+
+		var i, len, result;
+
+		if (! _.isObject (val)) {
+			return val;
+		}
+
+		if (_.isArray (val)) {
+			i = 0; len = val.length; result = [];
+			for (; i < len; i++) {
+				result.push (_.copy (val [i]));
+			}
+			return result;
+		}
+
+		result = {};
+		for (i in val) {
+			if (_.has (i) (val)) {
+				result [i] = _.copy (val [i]);
+			}
+		}
+		return result;
+	};
 
 	_.defined = (val) => ! _.vacant (val);
 
 	_.each = (itr) => function (val) {
 		_.vowFn (itr);
 		_.vowObj (val);
-		var i = 0, len = length (val), valAt = atOn (val);
+		var i = 0, len = _.length (val), valAt = _.atOn (val);
 		for (; i < len; i++) {
 			if (itr (valAt (i)) === breaker) {
 				return;
@@ -142,6 +224,8 @@ define ([], function () {
 
 	_.finite = (val) => _.isFinite (val) && ! _.isNaN (parseFloat (val));
 
+	_.first = (ary) => (_.vowAry (ary)) [0];
+
 	_.flip = (fn) => (arg1) => (arg2) => fn (arg2) (arg1);
 
 	_.full = (val) => ! _.empty (val);
@@ -149,6 +233,23 @@ define ([], function () {
 	_.has = (key) => (obj) => hasOwnProperty.call (_.vowObj (obj), _.vowIdx (key));
 	
 	_.identity = (val) => val;
+
+	_.ift = (condition) => (then) => _.vowBool (condition) ? then : undefined;
+	
+	_.ifte = (condition) => (then) => (els) => _.vowBool (condition) ? then : els;
+
+	_.insert = (addendum) => (idx) => function (ary) {
+		var i = 0, len = (_.vowAry (ary)).length,
+				result = new Array (len + 1);
+		result [idx] = addendum;
+		for (i; i < idx; i++) {
+			result [i] = _.copy (ary [i]);
+		}
+		for (i = idx + 1; i <= len; i++) {
+			result [i] = _.copy (ary [i - 1]);
+		}
+		return result;
+	};
 
 	_.isArray = (val) => nativeIsArray (val) || toString.call (val) == '[object Array]';
 
@@ -178,34 +279,61 @@ define ([], function () {
 
 	_.keys = (obj) => Object.keys (_.vowObj (obj));
 
+	_.last = (ary) => (_.vowAry (ary)) [ary.length - 1];
+
 	_.length = (val) => _.isArray (val) ? val.length : (_.keys (_.vowObj (val))).length;
 
-	_.reduceWith = (memo) => (itr) => function (val) {
+	_.map = (itr) => function (val) {
 		_.vowFn (itr);
-		_.vowObj (val);
-		var i = 0, len = _.length (val), valAt = _.atOn (val);
+		var i = 0, len = _.length (val), results = [], valAt = _.atOn (val);
 		for (; i < len; i++) {
-			memo = itr (memo) (valAt (i));
-		};
-		return memo;
+			results.push (itr (valAt (i)));
+		}
+		return results;
 	};
 
-	_.thunk = (fn) => (val) => () => _.vowFn (fn) (val);
+	_.pipe = (fns) => (val) => _.reduceWith (val) (_.callOn) (fns);
 
-	_.value = {};
+	_.pipe2 = (fn1) => (fn2) => (val) => _.vowFn (fn2) (_.vowFn (fn1) (val));
 
-	_.thunkUp = function (fn) {
-		var arg = fn, store = [];
-		function helper (val) {
-			if (val === _.value) {
-				return () => _.cascade (store);
-			} else {
-				store.push (arg);
-				arg = val;
-				return helper;
-			}
+	_.pop = function (ary) {
+		var result = _.copy (_.vowAry (ary));
+		result.pop ();
+		return result;
+	};
+
+	_.push = (val) => function (ary) {
+		var result = _.copy (_.vowAry (ary));
+		result.push (val);
+		return result;
+	};
+
+	_.put = (addendum) => (key) => function (val) {
+		var result = _.copy (_.vowObj (val));
+		var check = _.isGuardSet () ?
+			(_.isArray (val) ? _.vowInt : _.vowStr) :
+			_.identity;
+		var idx = _.copy (check (key));
+		result [idx] = addendum;
+		return result;
+	};
+
+	_.reduceWith = (memo) => (itr) => function (ary) {
+		_.vowFn (itr);
+		var i = 0, len = (_.vowAry (ary)).length, result = memo;
+		for (; i < len; i++) {
+			result = itr (result) (ary [i]);
 		};
-		return helper;
+		return result;
+	};
+
+	_.rreduceWith = (memo) => (itr) => function (ary) {
+		_.vowFn (itr);
+		var i = (_.vowAry (ary)).length, result = memo;
+		for (; i--; ) {
+			result = itr (result) (ary [i]);
+		}
+		return result;
 	};
 
 	_.throwError = function (msg) {
@@ -216,6 +344,13 @@ define ([], function () {
 		throw new TypeError (msg);
 	};
 
+	_.thunk = (vals) => () => _.reduceWith (_.vowFn (vals.shift ())) (_.call2) (vals);
+
+	_.thunk1 = _.receive = _.store = _.fpush = (val) => () => val;
+
+	// aliases
+	_.thunk2 = _.defer = (fn) => (val) => () => _.vowFn (fn) (val);
+
 	_.vacant = (val) => _.isNull (val) || _.isUndefined (val) || _.isNaN (val);
 
 	_.vowWith = (pred) => (msg) => function (val) {
@@ -224,10 +359,52 @@ define ([], function () {
 		return val;
 	};
 
+	_.reduceWith = (memo) => (itr) => function (ary) {
+		_.vowFn (itr);
+		var i = 0, len = (_.vowAry (ary)).length, result = memo;
+		for (; i < len; i++) {
+			result = itr (result) (ary [i]);
+		};
+		return result;
+	};
+
+	// aliases
+	_.zip = _.zipEach = (itr) => (ary1) => function (ary2) {
+		_.vowFn (itr);
+		var i = 0,
+				len1 = (_.vowAry (ary1)).length,
+				len2 = (_.vowAry (ary2)).length;
+		_.vow (len1 === len2) (equalLengthMsg);
+		for (; i < len1; i++) {
+			if (itr (ary1 [i]) (ary2 [i]) === breaker) {
+				return
+			}
+		}
+	};
+
+	_.zipReduceWith = (memo) => (itr) => (ary1) => function (ary2) {
+		_.vowFn (itr);
+		var i = 0,
+				len1 = (_.vowAry (ary1)).length,
+				len2 = (_.vowAry (ary2)).length,
+				result = memo;
+		_.vow (len1 === len2) (equalLengthMsg);
+		for (; i < len1; i++) {
+			result = itr (result) (ary1 [i]) (ary2 [i]);
+		}
+		return result;
+	};
+
 	// derivative functions
 	// --------------------
 
 	_.atOn = _.flip (_.at);
+
+	_.composeDown = _.breakAtValue (_.compose);
+
+	_.pipeDown = _.breakAtValue (_.pipe);
+
+	_.thunkDown = _.breakAtValue (_.thunk2 (_.call));
 	
 	_.vowAry = _.vowWith (_.isArray) (aryMsg);
 
@@ -246,6 +423,8 @@ define ([], function () {
 	_.vowObj = _.vowWith (_.isObject) (objMsg);
 
 	_.vowStr = _.vowWith (_.isString) (strMsg);
+
+	_.zipAssign = _.zipReduceWith ({}) (assign);
 
 	return _;
 

@@ -4,6 +4,7 @@ require.config({
   paths: {
     jasmine: '../test/lib/jasmine',
     'jasmine-html': '../test/lib/jasmine-html',
+    testem: '/testem',
     spec: '../test/jasmine/spec/'
   },
   shim: {
@@ -17,7 +18,7 @@ require.config({
   }
 });
 
-require (['jasmine-html'], function () {
+require (['jasmine-html', 'testem'], function () {
 
   var jasmineEnv = jasmine.getEnv();
   jasmineEnv.updateInterval = 1000;

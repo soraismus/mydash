@@ -16,10 +16,6 @@ define (['mydash/mydash'], function (_) {
 			expect (expected) .toBe (actual);
 	};
 
-	var not = (actual) => function (expected) {
-		return expect (expected) .not;
-	};
-
 	var not = (expected) => (expect (expected)) .not;
 
 	var notToBe = (actual) => (expected) => (not (expected)) .toBe (actual);
@@ -48,6 +44,12 @@ define (['mydash/mydash'], function (_) {
 		toBeFalse     = toEqual (false),
 		toBeNull      = toEqual (null),
 		toBeUndefined = toEqual (undefined);
+
+	var toHaveLength = (act) => function (exp) {
+		return _.isFunction (exp) ?
+			expect (_.length (exp ())) .toEqual (act) :
+			expect (_.length (exp)) .toEqual (act);
+	};
 
 	var toBeIdx = (actual) => function (expected) {
 		return _.isFunction (expected) ?
@@ -91,16 +93,6 @@ define (['mydash/mydash'], function (_) {
 		withGuard (expected);
 		_.restoreGuard ();
 	};
-
-	var D = (description) => (fn) => describe (description, fn),
-			I = (expectation) => function (val) {
-				return _.isFunction (val) ?
-					() => it (expectation, val) :
-					() => it (expectation, () => val);
-			},
-			d = (descr) => (expec) => function (val) {
-				return D (descr) (I (expec) (val));
-			};
 
 	describe ('ControlGuard Suite', ()=>{
 		it ('should control whether guard-testing occurs', ()=>{
@@ -311,11 +303,11 @@ define (['mydash/mydash'], function (_) {
 
 		});
 
-		describe ('call', ()=>{
-			var call = _.thunk (_.call);
+		describe ('call1', ()=>{
+			var call1 = _.thunk2 (_.call1);
 			var thunk = () => 5;
-			var test1 = call (thunk);
-			var test2 = call (5);
+			var test1 = call1 (thunk);
+			var test2 = call1 (5);
 			it ('should trampoline a thunk (i.e., a nullary closure)', ()=>{
 				var thunk = () => 5;
 				testDbl (toEqual (5)) (test1);
@@ -328,7 +320,7 @@ define (['mydash/mydash'], function (_) {
 
 		describe ('callOn', ()=>{
 			it ('should allow an argument to precede a function', ()=>{
-				var callOn = _.thunk (_.callOn);
+				var callOn = _.thunk2 (_.callOn);
 				testDbl (toBeFn) (callOn (5));
 				testDbl (toEqual (5)) (_.callOn (5) (_.identity));
 			});
@@ -342,26 +334,157 @@ define (['mydash/mydash'], function (_) {
 			it ('should take the 1st component of an array as a function and then iteratively apply the function onto the remaining elements of the array', ()=>{
 				var fn = (i) => (j) => (k) => (l) => j (5);
 				var arg2 = (i) => i + 2;
-				var ary = [fn, 1, arg2, 3, 4];
-				testDbl (toEqual (7)) (_.cascade (ary));
+				var ary1 = [fn, 1, arg2, 3, 4];
+				var ary2 = [fn]
+				testDbl (toEqual (7)) (_.cascade (ary1));
+				expect (_.cascade (ary2)) .toEqual (fn);
+				
 			});
 		});
 
-		describe ('thunkUp', ()=>{
-			it ('should return a thunk of all arguments until _.value', ()=>{
-				var test = () => _.thunkUp (_.at) (0) ([5]) (_.value);
-				toBeFn (test);
-				//toEqual (5) (_.call (test));
+		describe ("compose", function () {
+		  var fn1 = (i) => i + 1;
+			var fn2 = (i) => 2 * i;
+			var fn3 = (i) => i * i * i;
+
+			it ("should return a function that is the chained composition of the fns in the given array", function () {
+			 testDbl (toEqual (8)) (_.compose ([fn3, fn2, fn1]) (0));
 			});
 		});
+
+		describe ("composeDown", function () {
+		  var fn1 = (i) => i + 1;
+			var fn2 = (i) => 2 * i;
+			var fn3 = (i) => i * i * i;
+
+			it ("should return a function that is the chained composition of the fn args", function () {
+			 testDbl (toEqual (2)) (_.composeDown (fn2) (fn1) (_.stop) (0));
+			 testDbl (toEqual (8)) (_.composeDown (fn3) (fn2) (fn1) (_.stop) (0));
+			});
+		});
+
+		describe ("each", function () {
+			var store = [];
+			var fn = (i) => store.push (i);
+			var ary = [0, 'a', false];
+			var obj = { a: 0, b: 'a', c: false };
+
+			it ("should apply a function to each member of a collection", function () {
+				_.each (fn) (ary);
+				toContain (0) (store);
+				toContain ('a') (store);
+				toContain (false) (store);
+			});
+		});
+				
 
 		describe ('length', ()=>{
 			it ('should return the length of an array or the number of enumerable attributes of an object', ()=>{
 				var ary = [1, 2, 3, 4];
 				var obj = { a: 1, b: 2, c: 3, d: 4 };
-				var length = _.thunk (_.length);
+				var length = _.thunk2 (_.length);
 				testDbl (toEqual (4)) (length (ary));
 				testDbl (toEqual (4)) (length (obj));
+			});
+		});
+
+		describe ("map", function () {
+		  it ("should return a new array or object, the components of which transformed by the itr", function () {
+		    var ary = [1, 2, 4, 8];
+				var obj = { a: 1, b: 2, c: 4, d: 8 };
+				var itr = (i) => i * i;
+				var result1 = _.map (itr) (ary);
+				var result2 = _.map (itr) (obj);
+				toContain (1) (result1);
+				toContain (4) (result1);
+				toContain (16) (result1);
+				expect (result1) .not.toContain (2);
+
+				toContain (1) (result2);
+				toContain (4) (result2);
+				toContain (16) (result2);
+				expect (result2) .not.toContain (2);
+			});
+		});
+
+		describe ("copy", function () {
+		  it ("should return a deep copy of the argument", function () {
+		    var a1 = 5;
+				var a2 = "a2";
+				var a3 = [];
+				var a4 = [a1, a2];
+				var a5 = [a1, [a2]];
+				var a6 = {};
+				var a7 = { a: a1, b: a2 };
+				var a8 = { a: a1, b: [a2] };
+				var a9 = { a: { b: {} }, c: { d: [{}] } };
+				testDbl (toEqual (5)) (_.copy (a1));
+				testDbl (toEqual ('a2')) (_.copy (a2));
+				testDbl (toBeAry) (_.copy (a3));
+				testDbl (toHaveLength (2)) (_.copy (a4));
+				testDbl (toContain (a1)) (_.copy (a4));
+				testDbl (toContain (a2)) (_.copy (a4));
+				testDbl (toHaveLength (2)) (_.copy (a5));
+				testDbl (toContain (a1)) (_.copy (a5));
+				testDbl (toBeAry) ((_.copy (a5)) [1]);
+				testDbl (toBeObj) (_.copy (a6));
+				testDbl (toHaveLength (0)) (_.copy (a6));
+				testDbl (toBeObj) (_.copy (a7));
+				testDbl (toHaveLength (2)) (_.copy (a7));
+				testDbl (toEqual (a1)) ((_.copy (a7)) ['a']);
+				testDbl (toBeObj) (_.copy (a8));
+				testDbl (toHaveLength (2)) (_.copy (a8));
+				testDbl (toBeAry) ((_.copy (a8)) ['b']);
+				testDbl (toBeObj) (_.copy (a9));
+				testDbl (toHaveLength (2)) (_.copy (a9));
+				testDbl (toBeAry) ((_.copy (a9)) ['c'] ['d']);
+				testDbl (toBeObj) ((_.copy (a9)) ['c'] ['d'] [0]);
+				
+			});
+		});
+
+		describe ("insert", function () {
+		  it ("should return a copy of the array but with a new component inserted at the specified index", function () {
+				var ary = [2, 4, 6, 8];
+				var result = _.insert (100) (2) (ary);
+				testDbl (toHaveLength (5)) (result);
+				testDbl (toEqual (100)) (result [2]);
+				testDbl (toEqual (6)) (result [3]);
+			});
+		});
+
+		describe ("pop", function () {
+		  it ("should return an array with all the given array's components except the last", function () {
+		    var ary1 = [ ['one'], null, 21, { a: 7 } ];
+				var ary2 = _.pop (ary1);
+				testDbl (toHaveLength (3)) (ary2);
+				testDbl (toEqual (21)) (ary2 [ary2.length - 1]);
+			});
+		});
+
+		describe ("push", function () {
+		  it ("should return an array with the first given arg as an additional component", function () {
+				var ary1 = [5, 'a2', true];
+				var ary2 = _.push (7) (ary1);
+				testDbl (toHaveLength (4)) (ary2);
+				testDbl (toEqual (7)) (ary2 [ary2.length - 1]);
+			});
+		});
+
+		describe ("put", function () {
+		  it ("should return an array with the specified element at the specified index", function () {
+		    var ary = [1, 5, 7];
+				var obj = { a: 2, b: 3, c: 4 };
+				var result1 = _.put (100) (1) (ary);
+				var result2 = _.put (100) ('d') (obj);
+				var result3 = _.thunkDown (_.put) (100) ('a') (ary) (_.stop);
+				testDbl (toBeAry) (result1);
+				testDbl (toHaveLength (3)) (result1);
+				testDbl (toEqual (100)) (result1 [1]);
+				test (toThrowIntMsg) (toThrow) (result3);
+				testDbl (toBeObj) (result2);
+				testDbl (toHaveLength (4)) (result2);
+				testDbl (toEqual (100)) (result2 ['d']);
 			});
 		});
 
@@ -369,16 +492,48 @@ define (['mydash/mydash'], function (_) {
 			it ('should act on a collection to return a single value', ()=>{
 				var ary1 = [1, 2, 3, 4];
 				var ary2 = [8, 4, 2, 1];
+				var ary3 = [];
 				var obj = { a: 1, b: 2, c: 3, d: 4 };
 				var sum = (m) => (i) => m + i;
 				var div = (m) => (i) => m / i;
-				var reduceWith1 = () => _.reduceWith (0) (sum) (ary1);
-				var reduceWith2 = () => _.reduceWith (0) (sum) (obj);
-				var reduceWith3 = () => _.reduceWith (64) (div) (ary2);
+				var fn = () => 5;
 
-				testDbl (toEqual (10)) (reduceWith1);
-				testDbl (toEqual (10)) (reduceWith2);
-				testDbl (toEqual (1)) (reduceWith3);
+				testDbl (toEqual (10)) (_.reduceWith (0) (sum) (ary1));
+				testDbl (toEqual (1)) (_.reduceWith (64) (div) (ary2));
+				testDbl (toEqual (0)) (_.reduceWith (0) (sum) ([]));
+				testDbl (toEqual (1)) (_.reduceWith (1) (div) ([]));
+				expect (_.reduceWith (fn) (sum) ([])) .toEqual (fn);
+			});
+		});
+
+		describe ('thunkDown', ()=>{
+			it ('should return a thunk of all arguments until _.stop', ()=>{
+				var test = () => _.thunkDown (_.at) (0) ([5]) (_.stop);
+				toEqual (5) (_.call1 (test));
+				expect ((_.thunkDown (_.at) (0) ([5]) (_.stop)) ()) .toEqual (5);
+			})
+		});
+
+		describe ("zipReduceWith", function () {
+			it ('should act on two collections to return a single value', ()=>{
+		    var ary1 = [1, 2, 3, 4];
+				var ary2 = [2, 4, 6, 8];
+				var itr = ((memo) => (i) => (j) => [memo [0] + i, memo [1] + j]);
+				var result = _.zipReduceWith ([0, 0]) (itr) (ary1) (ary2);
+				expect (result [0]) .toEqual (10);
+				testDbl (toContain (10)) (result);
+				testDbl (toContain (20)) (result);
+			});
+		});
+
+		describe ("zipAssign", function () {
+		  it ("creates an object with the components of the first array as its keys and the components of the second array as its respective attributes", function () {
+		    var keys = ['a', 'b', 'c'];
+				var attributes = [5, 'attr2', false];
+				var result = _.zipAssign (keys) (attributes);
+				testDbl (toBeObj) (result);
+				testDbl (toEqual (5)) (result ['a']);
+				testDbl (toEqual ('attr2')) (result ['b']);
 			});
 		});
 
