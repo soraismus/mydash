@@ -453,6 +453,22 @@ define (['mydash/mydash'], function (_) {
 			});
 		});
 
+		describe ("or", function () {
+		  it ("should return a predicate that tests whether any of the component predicates is satisfied", function () {
+		    var ary = [(i) => i > 10, (i) => i < 20, (i) => i % 2 === 0];
+				var ary2 = [(i) => i > 10, (i) => i % 2 === 0, _.isString];
+				var v1 = 12;
+				var v2 = 13;
+				var result = _.or (ary);
+				var result2 = _.or (ary2);
+				toBeFn (() => result);
+				toBeTrue (result (12));
+				toBeTrue (result (13));
+				toBeTrue (result (2));
+				toBeFalse (result2 (3));
+			});
+		});
+
 		describe ("pop", function () {
 		  it ("should return an array with all the given array's components except the last", function () {
 		    var ary1 = [ ['one'], null, 21, { a: 7 } ];
@@ -485,6 +501,23 @@ define (['mydash/mydash'], function (_) {
 				testDbl (toBeObj) (result2);
 				testDbl (toHaveLength (4)) (result2);
 				testDbl (toEqual (100)) (result2 ['d']);
+			});
+		});
+
+		describe ("range", function () {
+		  it ("should return an appropriate arithemetic progression", function () {
+		    toHaveLength (1) (_.range ([1]));
+				toContain (0) (_.range ([1]));
+				toHaveLength (2) (_.range ([2]));
+				toContain (0) (_.range ([2]));
+				toContain (1) (_.range ([2]));
+				toHaveLength (20) (_.range ([20]));
+				toContain (0) (_.range ([20]));
+				toContain (19) (_.range ([20]));
+				expect (_.range ([20])) .not.toContain (20);
+				//console.log (_.range ([5, 10]));
+				//console.log (_.range ([5, 11, 2]));
+				//console.log (_.range ([3, 13, 3]));
 			});
 		});
 

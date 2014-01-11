@@ -162,6 +162,16 @@ define ([], function () {
 		return helper;
 	};
 
+	_.breakIf = (pred) => (val) => _.vowFn (pred) (val) ? breaker : undefined;
+
+	_.brkReduceWith = (pred) => (memo) => (itr) => function (ary) {
+		_.vowFn (itr);
+		var result = memo;
+		var itr2 = (val) => _.breakIf (pred) ((result = itr (result) (val)));
+		_.each (itr) (ary);
+		return result;
+	};
+
 	// aliases
 	_.call = _.cascade = (ary) => _.reduceWith (_.vowFn (ary.shift ())) (_.call2) (ary);
 
@@ -296,6 +306,16 @@ define ([], function () {
 		return results;
 	};
 
+	_.or = (ary) => function (val) {
+		var result = false;
+		var br = _.breakIf (_.identity);
+		var itr = (pred) => br ((result = _.vowFn (pred) (val)));
+		_.each (itr) (_.vowAry (ary));
+		return result;
+	};
+
+	_.or2 = (pred1) => (pred2) => (val) => _.vowFn (pred1) (val) ? true : _.vowFn (pred2) (val) ? true : false;
+
 	_.pipe = (fns) => (val) => _.reduceWith (val) (_.callOn) (fns);
 
 	_.pipe2 = (fn1) => (fn2) => (val) => _.vowFn (fn2) (_.vowFn (fn1) (val));
@@ -322,6 +342,20 @@ define ([], function () {
 		return result;
 	};
 
+	_.range = function (bounds) {
+		var len = (_.vowAry (bounds)).length;
+		_.vow (len > 0) ('Array must not be empty');
+		var start = len === 1 ? 0 : _.vowInt (bounds [0]);
+		var stop = len === 1 ? _.vowInt (bounds [0]) : _.vowInt (bounds [1]);
+		var step = len < 3 ? 1 : _.vowInt (bounds [2]);
+		var result = [];
+		var i = 0, count = Math.ceil ((stop - start) / step);
+		for (; i < count; i++) {
+			result.push (start + step * i);
+		}
+		return result;
+	};
+
 	_.reduceWith = (memo) => (itr) => function (ary) {
 		_.vowFn (itr);
 		var i = 0, len = (_.vowAry (ary)).length, result = memo;
@@ -338,6 +372,13 @@ define ([], function () {
 			result = itr (result) (ary [i]);
 		}
 		return result;
+	};
+
+	_.slice = (bounds) => function (val) {
+		var len = (_.vowAry (bounds)).length;
+		_.vow (len > 0) ('Array must not be empty');
+		_.vowWith (_.or2 (_.isAry) (_.isString)) (val);
+		return val.slice (bounds [0], bounds [1]);
 	};
 
 	_.split = (mrk) => (str) => StrProto.split.call (_.vowStr (str), _.vowStr (mrk));
@@ -357,11 +398,11 @@ define ([], function () {
 	// aliases
 	_.thunk2 = _.defer = (fn) => (val) => () => _.vowFn (fn) (val);
 
-	_.toLC = (str) => StrProto.toLowerCase.call (_.vowStr (str));
+	_.toLC = (str) => (_.vowStr (str)).toLowerCase ();
 
-	_.toUC = (str) => StrProto.toUpperCase.call (_.vowStr (str));
+	_.toUC = (str) => (_.vowStr (str)).toUpperCase ();
 
-	_.trim = (str) => StrProto.trim.call (_.vowStr (str));
+	_.trim = (str) => (_.vowStr (str)).trim ();
 
 	_.vacant = (val) => _.isNull (val) || _.isUndefined (val) || _.isNaN (val);
 
@@ -369,15 +410,6 @@ define ([], function () {
 		_.vow (_.isFunction (pred)) (fnMsg);
 		_.vow (pred (val)) (msg);
 		return val;
-	};
-
-	_.reduceWith = (memo) => (itr) => function (ary) {
-		_.vowFn (itr);
-		var i = 0, len = (_.vowAry (ary)).length, result = memo;
-		for (; i < len; i++) {
-			result = itr (result) (ary [i]);
-		};
-		return result;
 	};
 
 	// aliases
