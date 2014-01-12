@@ -65,6 +65,18 @@ define ([], function () {
 		nativeExec = RegExpProto.exec,
 		nativeTest = RegExpProto.test;
 
+	var
+		nativeAbs = Math.abs,
+		nativeCeil = Math.ceil,
+		nativeFloor = Math.floor,
+		nativeFround = Math.fround,
+		nativeMax = Math.max,
+		nativeMin = Math.min,
+		nativePow = Math.pow,
+		nativeRandom = Math.random,
+		nativeRound = Math.round,
+		nativeTrunc = Math.trunc; // harmony
+
   var
 		aryMsg  = 'Invalid array',
 		boolMsg = 'Invalid boolean',
@@ -162,13 +174,46 @@ define ([], function () {
 		return helper;
 	};
 
-	_.breakIf = (pred) => (val) => _.vowFn (pred) (val) ? breaker : undefined;
+	_.breakIf = (pred) => (val) => _.vowBool (_.vowFn (pred) (val)) ? breaker : undefined;
+
+	// monad ??
+	// => (_.vowAry (results)) [_.brkEach (FN) (MONAD) (_.vowAry (conditions))];
+	// FN = _.identity; MONAD = _.identity closed over an incrementing variable
+	// a default result?
+	// _.if = ... [like _.true]
+	_.iff = (conditions) => function (results) {
+		var i = -1;
+		// this might be an example of a monad pattern
+		var itr = function (val) {
+			i++;
+			return val;
+		};
+		_.brkEach (_.identity) (itr) (_.vowAry (conditions));
+		return (_.vowAry (results)) [i];
+	};
+
+	_.iffWith = (predicates) => (results) => function (val) {
+		var i = -1;
+		var itr = function (val) {
+			i++;
+			return val;
+		};
+		_.brkEach (_.callOn (val)) (itr) (_.vowAry (predicates));
+		return (_.vowAry (results)) [i];
+	};
+
+	_.brkEach = (pred) => (itr) => function (val) {
+		_.vowFn (itr);
+		var result, br = _.breakIf (_.vowFn (pred));
+		var itr2 = (val) => br ( (result = itr (val)) );
+		_.each (itr2) (val);
+		return result;
+	};
 
 	_.brkReduceWith = (pred) => (memo) => (itr) => function (ary) {
-		_.vowFn (itr);
-		var result = memo;
-		var itr2 = (val) => _.breakIf (pred) ((result = itr (result) (val)));
-		_.each (itr) (ary);
+		var result = memo, br = _.breakIf (_.vowFn (pred));
+		var itr2 = (val) => br ( (result = _.vowFn (itr) (result) (val)) );
+		_.each (itr2) (ary);
 		return result;
 	};
 
@@ -183,6 +228,8 @@ define ([], function () {
 
 	_.callOn = (arg) => (fn) => _.vowFn (fn) (arg);
 
+	_.charAt = (idx) => (str) => nativeCharAt.call (_.vowStr (str), _.vowInt (idx));
+
 	_.compose = (fns) => (val) => _.rreduceWith (val) (_.callOn) (fns);
 
 	// aliases
@@ -193,6 +240,12 @@ define ([], function () {
 	_.concat2 = (str1) => (str2) => StrProto.concat (_.vowStr (str1), _.vowStr (str2));
 
 	_.constant = (val) => () => val;
+
+	_.contains = (tgt) => function (val) {
+		return nativeIndexOf && (_.vowObj (val)).indexOf === nativeIndexOf ?
+			val.indexOf (tgt) != -1 :
+			_.any ((i) => i === tgt) (val);
+	};
 
 	_.copy = function (val) {
 		(_.vow (! _.isObject (val) || _.isArray (val) || _.isHash (val))
@@ -223,6 +276,20 @@ define ([], function () {
 
 	_.defined = (val) => ! _.vacant (val);
 
+	_.do = (fns) => function (val) {
+		_.vowAry (fns);
+		var i = 0, len = (_.vowAry (fns)).length;
+		for (; i < len - 1; i++) {
+		  _.vowFn (fns [i]) (val);
+		}
+		return _.vowFn (fns [len -1]) (val);
+	};
+
+	_.do2 = (fn1) => (fn2) => function (val) {
+		_.vowFn (fn1) (val);
+		return _.vowFn (fn2) (val);
+	};
+
 	_.each = (itr) => function (val) {
 		_.vowFn (itr);
 		_.vowObj (val);
@@ -241,6 +308,8 @@ define ([], function () {
 	_.first = (ary) => (_.vowAry (ary)) [0];
 
 	_.flip = (fn) => (arg1) => (arg2) => fn (arg2) (arg1);
+
+	_.floor = (nbr) => Math.floor (_.vowNbr (nbr));
 
 	_.full = (val) => ! _.empty (val);
 
@@ -265,6 +334,8 @@ define ([], function () {
 		return result;
 	};
 
+	_.interject = (fns) => _.do (_.push (_.identity) (fns));
+
 	_.isArray = (val) => nativeIsArray (val) || toString.call (val) == '[object Array]';
 
 	_.isBoolean = (val) => (val === true ||
@@ -283,11 +354,15 @@ define ([], function () {
 
 	_.isInteger = (val) => _.isNumber (val) && val === (val >>> 0);
 
+	_.isLC = (str) => _.matches ('[a-z]+') (_.vowStr (str));
+
 	_.isNaN = (val) => _.isNumber (val) && val != +val;
 
 	_.isNull = (val) => val === null;
 
 	_.isObject = (val) => val === Object (val);
+
+	_.isUC = (str) => _.matches ('[A-Z]+') (_.vowStr (str));
 
 	_.isUndefined = (val) => val === void 0;
 
@@ -304,6 +379,26 @@ define ([], function () {
 			results.push (itr (valAt (i)));
 		}
 		return results;
+	};
+
+	_.matches = (pattern) => (str) => new RegExp (_.vowStr (pattern)).test (_.vowStr (str));
+
+	_.meld = (arrays) => _.reduce (_meld2) (_.vowAry (arrays));
+
+	_.meld2 = (ary1) => (ary2) => concat (_.vowAry (ary1), _.vowAry (ary2));
+
+	_.not = (pred) => (val) => ! pred (val);
+
+	_.null = (val) => null;
+
+	_.partialMap = (idxs) => (itr) => function (val) {
+		_.vowAry (idxs); _.vowFn (itr); _.vowObj (val);
+		var i = 0, len = _.length (val), result = [], valAt = _.atOn (val);
+		var idxsContain = _.flip (_.contains) (idxs);
+		for (; i < len; i++) {
+			result.push (idxsContain (_.vowIdx (i)) ? itr (valAt (i)) : valAt (i));
+		}
+		return result;
 	};
 
 	_.or = (ary) => function (val) {
@@ -334,6 +429,7 @@ define ([], function () {
 
 	_.put = (addendum) => (key) => function (val) {
 		var result = _.copy (_.vowObj (val));
+		//var result = _.copy (val);
 		var check = _.isGuardSet () ?
 			(_.isArray (val) ? _.vowInt : _.vowStr) :
 			_.identity;
@@ -356,6 +452,15 @@ define ([], function () {
 		return result;
 	};
 
+  _.reduce = (itr) => function (ary) {
+		_.vowFn (itr);
+		var i = 1, len = (_.vowAry (ary)).length, result = ary [0];
+		for (; i < len; i++) {
+			result = itr (result) (ary [i]);
+		}
+		return result;
+	};
+
 	_.reduceWith = (memo) => (itr) => function (ary) {
 		_.vowFn (itr);
 		var i = 0, len = (_.vowAry (ary)).length, result = memo;
@@ -374,6 +479,12 @@ define ([], function () {
 		return result;
 	};
 
+	_.shift = function (ary) {
+		var result = _.copy (_.vowAry (ary));
+		result.shift ();
+		return result;
+	};
+
 	_.slice = (bounds) => function (val) {
 		var len = (_.vowAry (bounds)).length;
 		_.vow (len > 0) ('Array must not be empty');
@@ -382,6 +493,8 @@ define ([], function () {
 	};
 
 	_.split = (mrk) => (str) => StrProto.split.call (_.vowStr (str), _.vowStr (mrk));
+
+	_.through = (fn) => (args) => _.reduceWith (fn) ((m) => (a) => m (a)) (args);
 
 	_.throwError = function (msg) {
 		throw new Error (msg);
@@ -403,6 +516,10 @@ define ([], function () {
 	_.toUC = (str) => (_.vowStr (str)).toUpperCase ();
 
 	_.trim = (str) => (_.vowStr (str)).trim ();
+
+	_.true = (val) => true;
+
+	_.undefined = (val) => undefined;
 
 	_.vacant = (val) => _.isNull (val) || _.isUndefined (val) || _.isNaN (val);
 
@@ -442,11 +559,25 @@ define ([], function () {
 	// derivative functions
 	// --------------------
 
+	_.all = _.brkEach (_.not (_.identity));
+
+	_.allOf = _.brkEach (_.not (_.identity)) (_.identity);
+
+	_.any = _.brkEach (_.identity);
+
+	_.anyOf = _.brkEach (_.identity) (_.identity);
+
 	_.atOn = _.flip (_.at);
 
 	_.callDown = _.breakDown (_.call);
 
 	_.composeDown = _.breakDown (_.compose);
+
+	_.doDown = _.breakDown (_.do);
+
+	_.interject1 = _.flip (_.do2) (_.identity);
+
+	_.interjectDown = _.breakDown (_.interject);
 
 	_.pipeDown = _.breakDown (_.pipe);
 
@@ -475,4 +606,3 @@ define ([], function () {
 	return _;
 
 });
-

@@ -34,6 +34,7 @@ require (['jasmine-html', 'testem'], function () {
   var specs = [];
 
 	specs.push('spec/mydash/mydash-spec');
+	specs.push('spec/mydash/trial-spec');
 
 	require (specs, function () {
 		jasmineEnv.execute ();
