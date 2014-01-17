@@ -5,6 +5,8 @@ define ([], function () {
 	var i, fns, len, types;
 
 	var breaker = {};
+	_.breaker = breaker;
+	Object.freeze (_.breaker);
 
 	_.stop = {};
 	Object.freeze (_.stop);
@@ -84,7 +86,7 @@ define ([], function () {
 		boolMsg  = 'Invalid boolean',
 		equalLengthMsg = 'Arrays should have equal length',
 		fnMsg    = 'Invalid function',
-		fullMsg  = 'Invalid empty array or object',
+		fullMsg  = 'Invalid non-empty array or object',
 		hshMsg   = 'Invalid generic object',
 		idxMsg   = 'Invalid key or index',
 	  intMsg   = 'Invalid integer',
@@ -105,7 +107,7 @@ define ([], function () {
 			},
 			set = (orig) => (aka) => _ [aka] = _ [orig],
 			//setAliases = () => _.zipCallThru (_.map (set) (fnNames)) (aliases);
-			setAliases = () => _.zipMap (_.map (set) (fnNames)) (aliases);
+			setAliases = () => _.zipApply (_.map (set) (fnNames)) (aliases);
 
 		return [alias, setAliases];
 	};
@@ -172,6 +174,8 @@ define ([], function () {
   }
 
 	_.abs = (nbr) => _.vowNbr (nbr) < 0 ? (-nbr) : nbr;
+
+	_.add = (i) => (j) => _.vowNbr (i) + _.vowNbr (j);
 
 	_.and = (ary) => function (val) {
 		var result = true;
@@ -268,10 +272,15 @@ define ([], function () {
 
 	// The suffix 'Across' indicates the use of a generator instead of an array.
 	_.breakAcross = (pred) => function (generator) {
-		var result,
+		// The default value of 'true' is returned when the generator returns 'breaker' immediately.
+		var result = true,
 				br = _.breakIf (_.vowFn (pred)),
-		    set = (v) => _.isBreaker (br (v)) ? breaker : v;
-		return _.trampoline (_.compose2 (set) (generator));
+				set = function (v) {
+					result = _.isBreaker (v) ? result : v;
+					return br (v);
+				};
+		_.trampoline (_.compose2 (set) (generator));
+		return result;
 	};
 
 	_.brkEach = (pred) => (itr) => function (val) {
@@ -288,6 +297,9 @@ define ([], function () {
 		_.each (itr2) (ary);
 		return result;
 	};
+
+	// This is a function to implement a 'maybe' monad.
+	_.bypassWith = (marker) => (pred) => (fn) => (val) => _.vowBool (_.vowFn (pred) (val)) ? marker : _.vowFn (fn) (val);
 
 	combinator ('flip') ('C');
 
@@ -398,11 +410,16 @@ define ([], function () {
 
 	_.decr = (intg) => _.vowInt (intg) - 1;
 
+	// This is a function to implement a 'maybe' monad.
+	_.defaultWith = (pred) => (defaultVal) => (val) => _.vowBool (_.vowFn (pred) (val)) ? defaultVal : val;
+
 	alias ('thunk2') ('defer');
 
 	_.defined = (val) => ! _.vacant (val);
 
 	bird ('embed3') ('dickcissel');
+
+	_.divide = (i) => (j) => _.vowNbr (i) / _.vowNbr (j);
 
 	_.do = _.eachOnto = (fns) => function (val) {
 		_.vowAry (fns);
@@ -425,6 +442,14 @@ define ([], function () {
 	alias ('replaceFirst') ('drag');
 
 	_.drop = (intg) => (ary) => (_.copy (_.vowAry (ary))).slice (_.vowNNeg (intg));
+
+	_.duplicate = (count) => function (val) {
+		var i = 0, len = _.vowInt (count), result = [];
+		for (; i < len; i++) {
+			result.push (val);
+		}
+		return result;
+	};
 
 	_.each = (itr) => function (val) {
 		_.vowFn (itr);
@@ -476,14 +501,22 @@ define ([], function () {
 
 	_.full = (val) => ! _.empty (val);
 
+	_.logThru = function (v) {
+		console.log(v);
+		return v;
+	};
+
 	_.generate = (initial) => (pred) => (itr) => function (fn) {
 		var i = initial;
 		_.vowFn (pred); _.vowFn (itr); _.vowFn (fn);
 		return function () {
 			var result, fnResult = fn (i);
+			//console.log('fnResult before #if: ', fnResult);
 			if (_.vowBool (pred (fnResult) (i))) {
 				result = fnResult;
+				//console.log('result: ', result);
 				i = itr (i);
+				//console.log('i: ', i);
 				return result;
 			} else {
 				return breaker;
@@ -527,16 +560,35 @@ define ([], function () {
 		return (_.vowAry (results)) [i];
 	};
 
-	_.iffIs = (vals) => (results) => _.iffWith (_.map (_.asPred) (_.vowAry (vals))) (_.vowAry (results));
+	//_.iffIs = (vals) => (results) => _.iffWith (_.map (_.asPred) (_.vowAry (vals))) (_.vowAry (results));
+	_.iffIs = (vals) => (results) => _.iffWith (_.map (_.asPred) (_.vowAry (vals))) (_.map (_.thunk1) (_.vowAry (results)));
 
-	_.iffWith = (predicates) => (results) => function (val) {
+	_.iffWith = (predicates) => (fns) => function (val) {
 		var i = -1;
 		var itr = function (val) {
 			i++;
 			return val;
 		};
 		_.brkEach (_.callOn (val)) (itr) (_.vowAry (predicates));
-		return (_.vowAry (results)) [i];
+		return _.vowFn ((_.vowAry (fns)) [i]) (val);
+	};
+
+	_.switch = (defaultValue) => (predicates) => (fns) => function (val) {
+		var i = -1,
+				len1 = (_.vowAry (predicates)).length,
+				len2 = (_.vowAry (fns)).length;
+		_.vow (len1 === len2) (equalLengthMsg);
+		var itr = function (pred) {
+			i++;
+			return pred;
+		};
+		_.brkEach (_.callOn (val)) (itr) (predicates);
+		return i === len1 ? defaultValue : _.vowFn (fns [i]) (val);
+	};
+
+	// I need a combintator for the pattern: (a) => (b) => (c) => (d) => a (c) (d) (b);
+	_.switchIfIs = (defaultValue) => (predicates) => (results) => function (val) {
+		return _.switch (defaultValue) (predicates) (_.map (_.thunk1) (results)) (val);
 	};
 
 	_.ift = (condition) => (then) => _.vowBool (condition) ? then : undefined;
@@ -597,6 +649,8 @@ define ([], function () {
 
 	_.isUndefined = (val) => val === void 0;
 
+	_.isZero = (val) => val === 0;
+
 	_.keys = (obj) => Object.keys (_.vowObj (obj));
 
 	combinator ('dont1') ('KI');
@@ -624,6 +678,9 @@ define ([], function () {
 
 	_.max2 = (nbr1) => (nbr2) => _.vowNbr (nbr1) > _.vowNbr (nbr2) ? nbr1 : nbr2;
 
+	// This is an implementation of the 'maybe' monad.
+	_.maybe = (fns) => _.pipe (_.map (_.bypassVacant) (fns));
+
 	_.meld = (arrays) => _.reduce (_meld2) (_.vowAry (arrays));
 
 	_.meld2 = (ary1) => (ary2) => concat (_.vowAry (ary1), _.vowAry (ary2));
@@ -631,6 +688,10 @@ define ([], function () {
 	_.min = (nbrs) => Math.min.apply (null, _.vowAry (nbrs));
 
 	_.min2 = (nbr1) => (nbr2) => _.vowNbr (nbr1) > _.vowNbr (nbr2) ? nbr2 : nbr1;
+
+	_.mod = (i) => (j) => _.vowInt (i) % _.vowInt (j);
+
+	_.multiply = (i) => (j) => _.vowNbr (i) * _.vowNbr (j);
 
 	_.not = (pred) => (val) => ! pred (val);
 
@@ -678,6 +739,10 @@ define ([], function () {
 		return result;
 	};
 
+	alias ('flip') ('pull1');
+
+	_.pull2 = (val1) => (val2) => (val3) => _.vowFn (_.vowFn (val2) (val3)) (val1);
+
 	_.push = (val) => function (ary) {
 		var result = _.copy (_.vowAry (ary));
 		result.push (val);
@@ -695,6 +760,8 @@ define ([], function () {
 	};
 
 	_.putOn = (val) => (addendum) => (key) => _.put (addendum) (key) (val);
+
+	combinator ('pull2') ('R');
 
 	// Refactor.
 	_.range = function (bounds) {
@@ -741,6 +808,8 @@ define ([], function () {
 	// check
 	_.reverse = (ary) => (_.vowAry (ary)).reverse ();
 
+	bird ('pull2') ('robin');
+
 	_.rreduceWith = (memo) => (itr) => function (ary) {
 		_.vowFn (itr);
 		var i = (_.vowAry (ary)).length, result = memo;
@@ -767,6 +836,8 @@ define ([], function () {
 		return result;
 	};
 
+	_.sign = (nbr) => _.vowNbr (nbr) < 0 ? -1 : (nbr > 0 ? 1 : 0);
+
 	_.slice = (bounds) => function (val) {
 		var len = (_.vowAry (bounds)).length;
 		_.vow (len > 0) ('Array must not be empty');
@@ -781,6 +852,8 @@ define ([], function () {
 	_.split = (mrk) => (str) => StrProto.split.call (_.vowStr (str), _.vowStr (mrk));
 
 	alias ('thunk1') ('store');
+
+	_.subtract = (i) => (j) => _.vowNbr (i) - _.vowNbr (j);
 
 	alias ('thunk1') ('suspend');
 
@@ -880,17 +953,31 @@ define ([], function () {
 		}
 	};
 
+	alias ('zipApply') ('zipMapCall');
+
 	alias ('zip') ('zipEach');
 
 	// zipMap does not match pattern of zipEach and zipReduceWith
-	_.zipMap = (itrs) => function (ary) {
+	//_.zipMap = (itrs) => function (ary) {
+		//var i = 0,
+				//result = [],
+				//len1 = (_.vowAry (itrs)).length,
+				//len2 = (_.vowAry (ary)).length;
+		//_.vow (len1 === len2) (equalLengthMsg);
+		//for (; i < len1; i++) {
+			//result.push (itrs [i] (ary [i]));
+		//}
+		//return result;
+	//};
+
+	_.zipMap = (itr) => (ary1) => function (ary2) {
 		var i = 0,
 				result = [],
-				len1 = (_.vowAry (itrs)).length,
-				len2 = (_.vowAry (ary)).length;
+				len1 = (_.vowAry (ary1)).length,
+				len2 = (_.vowAry (ary2)).length;
 		_.vow (len1 === len2) (equalLengthMsg);
 		for (; i < len1; i++) {
-			result.push (itrs [i] (ary [i]));
+			result.push (itr (ary1 [i]) (ary2 [i]));
 		}
 		return result;
 	};
@@ -913,19 +1000,27 @@ define ([], function () {
 
 	_.all = _.brkEach (_.not (_.identity));
 
+	_.allAcross = _.breakAcross (_.not (_.identity));
+
 	_.allOf = _.brkEach (_.not (_.identity)) (_.identity);
 
 	_.any = _.brkEach (_.identity);
 
-	_.anyOf = _.brkEach (_.identity) (_.identity);
+	_.anyAcross = _.breakAcross (_.identity);
 
-	_.asZero = _.asPred (0);
+	_.anyOf = _.brkEach (_.identity) (_.identity);
 
 	_.atOn = _.flip (_.at);
 
 	_.breakIfTrue = _.breakIf (_.identity);
 
 	_.breakIfFalse = _.breakIf (_.not (_.identity));
+
+	// This is a function to implement a 'maybe' monad.
+	_.bypass = _.bypassWith (null);
+
+	// This is a function to implement a 'maybe' monad.
+	_.bypassVacant = _.bypass (_.vacant);
 
 	_.callDown = _.breakDown (_.call);
 
@@ -935,10 +1030,15 @@ define ([], function () {
 
 	_.containsOn = _.flip (_.contains);
 
+	// This is a function to implement a 'maybe' monad.
+	_.default = _.defaultWith (_.vacant);
+
 	_.doDown = _.breakDown (_.do);
 
 	// Use case: var fn1 = _.dont; fn1 ([fn2, fn3, fn4]) (5);
 	_.dont = _.thunk1 (_.identity);
+	
+	_.dotProduct = _.zipMap (_.multiply);
 
 	_.eachOn = _.flip (_.each);
 
@@ -1001,6 +1101,8 @@ define ([], function () {
 
 	_.zipAssign = _.zipReduceWith ({}) (assign);
 
+	_.zipApply = _.zipMap (_.call2);
+
 	_.zipCall = _.zip (_.call2);
 	_.zipCallThru = _.zip (_.each);
 
@@ -1045,6 +1147,18 @@ define ([], function () {
 	//// (a) => (b) => a (a);
 	//combinator ('theta') ('Q');
 	////_.theta = 
+	//
+	// var a = (f) => f (f);
+	// var b = (g) => g (g);
+	// var omega = a (b);
+	//var omega = (((f) => f (f)) ((g) => g (g)));
+	// omega prevents termination b/c of the
+	// self-application of the intermediate fns
+	//
+	// var callcc =
+	// (f, cc) => f ((x, k) => cc (x), cc);
+	// callcc (f, _.identity) --> 
+	// what's the purpose of 'k'?
 
 	setAliases ();
 
