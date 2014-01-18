@@ -510,7 +510,7 @@ define ([], function () {
 	_.full = (val) => ! _.empty (val);
 
 	_.logThru = function (v) {
-		console.log(v);
+		console.log (v);
 		return v;
 	};
 
@@ -519,12 +519,9 @@ define ([], function () {
 		_.vowFn (pred); _.vowFn (itr); _.vowFn (fn);
 		return function () {
 			var result, fnResult = fn (i);
-			//console.log('fnResult before #if: ', fnResult);
 			if (_.vowBool (pred (fnResult) (i))) {
 				result = fnResult;
-				//console.log('result: ', result);
 				i = itr (i);
-				//console.log('i: ', i);
 				return result;
 			} else {
 				return breaker;
@@ -569,34 +566,90 @@ define ([], function () {
 	};
 
 	//_.iffIs = (vals) => (results) => _.iffWith (_.map (_.asPred) (_.vowAry (vals))) (_.vowAry (results));
-	_.iffIs = (vals) => (results) => _.iffWith (_.map (_.asPred) (_.vowAry (vals))) (_.map (_.thunk1) (_.vowAry (results)));
+	_.iffIs = (vals) => (results) => _.iffWith () (_.map (_.asPred) (_.vowAry (vals))) (_.map (_.thunk1) (_.vowAry (results)));
 
-	_.iffWith = (predicates) => (fns) => function (val) {
-		var i = -1;
+	_.makePred = (val) => _.isFunction (val) ? val : _.asPred (val);
+	_.makeFn = (val) => _.isFunction (val) ? val : _.thunk1 (val);
+
+	// Change fn's name.
+	_.iffWith = (checks) => (results) => function (val) {
+		var len1 = (_.vowAry (checks)).length,
+				len2 = (_.vowAry (results)).length;
+
+		_.vow (len1 === len2) (equalLengthMsg);
+
+		var preds = _.map (_.makePred) (checks),
+				fns = _.map (_.makeFn) (results),
+		    i = -1;
+
 		var itr = function (val) {
 			i++;
 			return val;
 		};
-		_.brkEach (_.callOn (val)) (itr) (_.vowAry (predicates));
-		return _.vowFn ((_.vowAry (fns)) [i]) (val);
+
+		// Should I convert 'preds' array into a generator?
+		_.brkEach (_.callOn (val)) (itr) (preds);
+		return fns [i] (val);
 	};
 
-	_.switch = (defaultValue) => (predicates) => (fns) => function (val) {
-		var i = -1,
-				len1 = (_.vowAry (predicates)).length,
-				len2 = (_.vowAry (fns)).length;
+	// This doesn't seem to work.
+	// Change fn's name.
+	_.iffWithDefault = (defaultVal) => (checks) => (results) => function (val) {
+		var len1 = (_.vowAry (checks)).length,
+				len2 = (_.vowAry (results)).length;
+
 		_.vow (len1 === len2) (equalLengthMsg);
-		var itr = function (pred) {
+
+		var preds = _.map (_.makePred) (checks),
+				fns = _.map (_.makeFn) (results),
+		    i = -1;
+
+		var itr = function (val) {
 			i++;
-			return pred;
+			return val;
 		};
-		_.brkEach (_.callOn (val)) (itr) (predicates);
-		return i === len1 ? defaultValue : _.vowFn (fns [i]) (val);
+
+		// Should I convert 'preds' array into a generator?
+		var lastPred = _.brkEach (_.callOn (val)) (itr) (preds);
+		return (i === len1 - 1 && ! lastPred (val)) ? defaultVal : fns [i] (val);
 	};
 
-	// I need a combintator for the pattern: (a) => (b) => (c) => (d) => a (c) (d) (b);
-	_.switchIfIs = (defaultValue) => (predicates) => (results) => function (val) {
-		return _.switch (defaultValue) (predicates) (_.map (_.thunk1) (results)) (val);
+	_.switch = (checks) => (results) => function (val) {
+		var len1 = (_.vowAry (checks)).length,
+				len2 = (_.vowAry (results)).length;
+
+		_.vow (len1 === len2) (equalLengthMsg);
+
+		var preds = _.map (_.makePred) (checks),
+		    i = -1;
+
+		var itr = function (val) {
+			i++;
+			return val;
+		};
+
+		// Should I convert 'preds' array into a generator?
+		_.brkEach (_.callOn (val)) (itr) (preds);
+		return results [i];
+	};
+
+	_.switchWith = (defaultVal) => (checks) => (results) => function (val) {
+		var len1 = (_.vowAry (checks)).length,
+				len2 = (_.vowAry (results)).length;
+
+		_.vow (len1 === len2) (equalLengthMsg);
+
+		var preds = _.map (_.makePred) (checks),
+		    i = -1;
+
+		var itr = function (val) {
+			i++;
+			return val;
+		};
+
+		// Should I convert 'preds' array into a generator?
+		var lastPred = _.brkEach (_.callOn (val)) (itr) (preds);
+		return (i === len1 - 1 && ! lastPred (val)) ? defaultVal : results [i];
 	};
 
 	_.ift = (condition) => (then) => _.vowBool (condition) ? then : undefined;
@@ -893,6 +946,8 @@ define ([], function () {
 
 	_.thunk = (vals) => () => _.reduceWith (_.vowFn (vals.shift ())) (_.call2) (vals);
 
+	// Javascript allows nullary functions to be called on arguments.
+	// Of course, however, this will have no effect.
 	_.thunk1 = (val) => () => val;
 
 	_.thunk2 = (fn) => (val) => () => _.vowFn (fn) (val);
