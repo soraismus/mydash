@@ -271,13 +271,14 @@ define ([], function () {
 	//_.vowNode;
 
 	// The suffix 'Across' indicates the use of a generator instead of an array.
-	_.breakAcross = (pred) => function (generator) {
+	_.breakAcross = (pred) => (itr) => function (generator) {
 		// The default value of 'true' is returned when the generator returns 'breaker' immediately.
+		_.vowFn (itr);
 		var result = true,
 				br = _.breakIf (_.vowFn (pred)),
 				set = function (v) {
-					result = _.isBreaker (v) ? result : v;
-					return br (v);
+					result = _.isBreaker (v) ? result : itr (v);
+					return br (itr (v));
 				};
 		_.trampoline (_.compose2 (set) (generator));
 		return result;
@@ -364,6 +365,12 @@ define ([], function () {
 		var lastAttr = _.first (_.vowAry (_.last (_.vowAry (contexts))));
 		var lastFn = _.pluck (lastAttr);
 		return _.pipe (_.push (lastFn) (_.map (_.use) (contexts))) (val);
+	};
+
+	_.glob = (contexts) => function (val) {
+		var lastAttr = _.first (_.vowAry (_.last (_.vowAry (contexts))));
+		var lastFn = _.pluck (lastAttr);
+		return _.pipe (_.map (_.use) (contexts)) (val);
 	};
 
 	alias ('env') ('continueWith');
@@ -480,6 +487,7 @@ define ([], function () {
 	_.empty = (val) => _.length (_.vowObj (val)) === 0;
 	
 	_.env = (firstAttr) => (contexts) => (val) => _.continue (_.vowAry (contexts)) (_.put (val) (firstAttr) ({}));
+	_.globWith = (firstAttr) => (contexts) => (val) => _.glob (_.vowAry (contexts)) (_.put (val) (firstAttr) ({}));
 
 	_.equiv = (ary) => _.all (_.asPred (_.first ((ary)))) (ary);
 
@@ -839,10 +847,18 @@ define ([], function () {
 	_.sign = (nbr) => _.vowNbr (nbr) < 0 ? -1 : (nbr > 0 ? 1 : 0);
 
 	_.slice = (bounds) => function (val) {
-		var len = (_.vowAry (bounds)).length;
-		_.vow (len > 0) ('Array must not be empty');
-		_.vowWith (_.or2 (_.isAry) (_.isString)) (val);
-		return val.slice (bounds [0], bounds [1]);
+		_.vowWith (_.or2 (_.isArray) (_.isString)) ('Input must be a string or array.') (val);
+		if (_.isNumber (bounds)) {
+			len = 1;
+			lb = bounds;
+			ub = val.length;
+		} else {
+			len = (_.vowAry (bounds)).length;
+			lb = bounds [0];
+			ub = bounds [1];
+		}
+		_.vow (len > 0) ('There must be at least one bound.');
+		return val.slice (lb, ub);
 	};
 
 	alias ('any') ('some');
@@ -957,19 +973,6 @@ define ([], function () {
 
 	alias ('zip') ('zipEach');
 
-	// zipMap does not match pattern of zipEach and zipReduceWith
-	//_.zipMap = (itrs) => function (ary) {
-		//var i = 0,
-				//result = [],
-				//len1 = (_.vowAry (itrs)).length,
-				//len2 = (_.vowAry (ary)).length;
-		//_.vow (len1 === len2) (equalLengthMsg);
-		//for (; i < len1; i++) {
-			//result.push (itrs [i] (ary [i]));
-		//}
-		//return result;
-	//};
-
 	_.zipMap = (itr) => (ary1) => function (ary2) {
 		var i = 0,
 				result = [],
@@ -1028,6 +1031,8 @@ define ([], function () {
 
 	_.composeDown = _.breakDown (_.compose);
 
+	_.concatDown = _.breakDown (_.concat);
+
 	_.containsOn = _.flip (_.contains);
 
 	// This is a function to implement a 'maybe' monad.
@@ -1058,6 +1063,8 @@ define ([], function () {
 	_.replaceFirst = _.replaceAt (0);
 
 	_.sequence = _.comprehend (0) (_.incr);
+
+	_.sliceOn = _.flip (_.slice);
 
 	_.thunkDown = _.breakDown (_.thunk2 (_.call));
 	
