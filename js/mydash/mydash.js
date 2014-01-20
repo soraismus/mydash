@@ -84,6 +84,7 @@ define ([], function () {
   var
 		aryMsg   = 'Invalid array',
 		boolMsg  = 'Invalid boolean',
+		equalMsg = 'Values must be equal',
 		equalLengthMsg = 'Arrays should have equal length',
 		fnMsg    = 'Invalid function',
 		fullMsg  = 'Invalid non-empty array or object',
@@ -185,6 +186,12 @@ define ([], function () {
 		return result;
 	};
 
+	_.apply = (fn) => (ary) => _.cascade (_.map (fn) (ary));
+
+	_.apply2 = (fn) => (val1) => (val2) => _.vowFn (_.vowFn (fn) (val1)) (val2);
+
+	_.arrayLength = (ary) => (_.vowAry (ary)).length;
+
 	_.asPred = (val) => (i) => i === val;
 
 	var assign = (obj) => (key) => function (attr) {
@@ -205,6 +212,54 @@ define ([], function () {
 	combinator ('compose3') ('B3');
 
 	bird ('compose3') ('becard');
+
+	_.binaryIfBranch = (bools) => function (results) {
+		var len1 = _.arrayLength (bools),
+				len2 = _.arrayLength (results),
+				msg = 'The number of potential results must be an appropriate power of 2.';
+
+		_.vow (len2 === _.pow (2) (len1)) (msg);
+
+		var itr = function () {
+			var i = len1;
+			return (memo) => function (nbr) {
+				i--;
+				return memo + nbr * _.pow (2) (i);
+			};
+		};
+
+		var numerify = (val) => (1 - (+ val)),
+				numericValues = _.map (numerify) (bools),
+				determineIdx = _.reduceWith (0) (itr ()),
+		    idx = determineIdx (numericValues);
+
+		return results [idx];
+	};
+
+	// Rename function.
+	_.binaryIfBranchApply = (checks) => (results) => function (val) {
+		var len1 = _.arrayLength (checks),
+				len2 = _.arrayLength (results),
+		    msg = 'The number of potential results must be an appropriate power of 2.';
+
+		_.vow (len2 === _.pow (2) (len1)) (msg);
+
+		var itr = function () {
+			var i = len1;
+			return (memo) => function (nbr) {
+				i--;
+				return memo + nbr * _.pow (2) (i);
+			};
+		};
+
+		var truthValues = _.mapOnto (checks) (val),
+		    numerify = (val) => (1 - (+ val)),
+				numericValues = _.map (numerify) (truthValues),
+				determineIdx = _.reduceWith (0) (itr ()),
+		    idx = determineIdx (numericValues);
+
+		return results [idx];
+	};
 
 	bird ('compose2') ('bluebird');
 
@@ -344,6 +399,12 @@ define ([], function () {
 	_.concat2 = (str1) => (str2) => StrProto.concat (_.vowStr (str1), _.vowStr (str2));
 
 	_.constant = (val) => () => val;
+
+	_.constrainedArrayLength = (len1) => function (ary2) {
+		var len2;
+		_.vow (len1 === (len2 = _.arrayLength (ary2))) (equalLengthMsg);
+		return len2;
+	};
 
 	_.contains = (tgt) => function (val) {
 		return nativeIndexOf && (_.vowObj (val)).indexOf === nativeIndexOf ?
@@ -495,6 +556,8 @@ define ([], function () {
 
 	combinator ('pipe2On') ('F');
 
+	_.false = (val) => false;
+
 	bird ('pipe2On') ('finch');
 
 	_.finite = (val) => _.isFinite (val) && ! _.isNaN (parseFloat (val));
@@ -508,11 +571,6 @@ define ([], function () {
 	alias ('thunk1') ('fpush');
 
 	_.full = (val) => ! _.empty (val);
-
-	_.logThru = function (v) {
-		console.log (v);
-		return v;
-	};
 
 	_.generate = (initial) => (pred) => (itr) => function (fn) {
 		var i = initial;
@@ -548,6 +606,8 @@ define ([], function () {
 	_.iBtw = (lb) => (ub) => (nbr) => _.vowNbr (nbr) >= lb && nbr <= ub;
 	
 	_.identity = (val) => val;
+
+	_.iffOn = (then) => (els) => (bool) => bool ? then : els;
 
 	// monad ??
 	// => (_.vowAry (results)) [_.brkEach (FN) (MONAD) (_.vowAry (conditions))];
@@ -614,6 +674,12 @@ define ([], function () {
 		return (i === len1 - 1 && ! lastPred (val)) ? defaultVal : fns [i] (val);
 	};
 
+  // leaf = x;
+	// [[x, N], [x2, N], [x3, N], ...]
+	var sister = _.drop (1);
+	var daughter = (ary) => ary [0] [1];
+	// [[_.a1 [[_.b1, [[_.c1 [x1]]]]]]];
+
 	_.switch = (checks) => (results) => function (val) {
 		var len1 = (_.vowAry (checks)).length,
 				len2 = (_.vowAry (results)).length;
@@ -621,7 +687,7 @@ define ([], function () {
 		_.vow (len1 === len2) (equalLengthMsg);
 
 		var preds = _.map (_.makePred) (checks),
-		    i = -1;
+				i = -1;
 
 		var itr = function (val) {
 			i++;
@@ -733,6 +799,7 @@ define ([], function () {
 
 	_.mapOnto = (itrs) => (val) => _.map (_.callOn (val)) (_.vowAry (itrs));
 
+	_.match = (pattern) => (str) => new RegExp (_.vowStr (pattern)) .test (str);
 	_.matches = (pattern) => (str) => new RegExp (_.vowStr (pattern)).test (_.vowStr (str));
 
 	_.max = (nbrs) => Math.max.apply (null, _.vowAry (nbrs));
@@ -746,6 +813,17 @@ define ([], function () {
 
 	_.meld2 = (ary1) => (ary2) => concat (_.vowAry (ary1), _.vowAry (ary2));
 
+	_.memoize = (hasher) => function (fn) {
+		_.vowFn (fn);
+		var memo = {};
+		return function (arg) {
+			var key = hasher (arg);
+			return _.has (key) (memo) ?
+				memo [key] :
+				(memo [key] = fn (arg));
+		};
+	};
+
 	_.min = (nbrs) => Math.min.apply (null, _.vowAry (nbrs));
 
 	_.min2 = (nbr1) => (nbr2) => _.vowNbr (nbr1) > _.vowNbr (nbr2) ? nbr2 : nbr1;
@@ -756,7 +834,19 @@ define ([], function () {
 
 	_.not = (pred) => (val) => ! pred (val);
 
+	_.nTimes = (intg) => function (fn) {
+		var i = -1;
+		return function (arg) {
+			i++;
+			return i < intg ?
+				fn (arg) :
+				arg;
+		};
+	};
+
 	_.null = (val) => null;
+
+	_.once = _.nTimes (1);
 	
 	alias ('replaceFirst') ('onHead');
 
@@ -800,6 +890,8 @@ define ([], function () {
 		return result;
 	};
 
+	_.pow = (base) => (exponent) => Math.pow (base, exponent);
+
 	alias ('flip') ('pull1');
 
 	_.pull2 = (val1) => (val2) => (val3) => _.vowFn (_.vowFn (val2) (val3)) (val1);
@@ -817,6 +909,17 @@ define ([], function () {
 			_.identity;
 		var idx = _.copy (check (key));
 		result [idx] = addendum;
+		return result;
+	};
+
+	_.putAll = (addenda) => (keys) => function (val) {
+		var result = _.copy (_.vowObj (val)),
+				len1 = _.arrayLength (addenda),
+				len2 = _.constrainedArrayLength (keys),
+				i = 0;
+		for (; i < len1; i++) {
+			result [_.vowIdx (keys [i])] = addenda [i];
+		}
 		return result;
 	};
 
@@ -865,6 +968,9 @@ define ([], function () {
 	_.reify = (label) => (val) => _.put (val) (_.vowStr (label)) ({});
 
 	_.replace = (fn) => (idx) => (ary) => _.put (_.vowFn (fn) ((_.vowAry (ary)) [_.vowInt (idx)])) (idx) (ary);
+
+	// ?? 
+	//_.replace = (fn) => (key) => (val) => _.put (_.vowFn (fn) (val [_.vowIdx (key)])) (key) (val);
 
 	// check
 	_.reverse = (ary) => (_.vowAry (ary)).reverse ();
@@ -996,6 +1102,11 @@ define ([], function () {
 
 	_.true = (val) => true;
 
+	_.tunnel = (fn) => function (val) {
+		_.vowFn (fn) (val);
+		return val;
+	};
+
 	_.undefined = (val) => undefined;
 
 	_.use = (context) => (obj) => (_.let
@@ -1004,6 +1115,19 @@ define ([], function () {
 			(obj));
 
 	_.vacant = (val) => _.isNull (val) || _.isUndefined (val) || _.isNaN (val);
+
+	// Consider implementing a system such that
+	// (1) a call-series of set length requires a fn's name to be suffixed
+	// with the numeral representing that length,
+	// (2) a call-series of indefinite length requires a fn's name to be
+	// suffixed with 'Down',
+	// (3) an array requires no distinguishing suffix,
+	// (4) a linked-list may require a distinguishing suffix.
+
+	// The message for this guard function must be set ad hoc.
+	_.vowEqual = (val1) => (val2) => _.vow (val1 === val2);
+
+	_.vowEqualLength = (val1) => (val2) => _.vowEqual (val1) (val2) (equalLengthMsg);
 
 	_.vowWith = (pred) => (msg) => function (val) {
 		_.vow (_.isFunction (pred)) (fnMsg);
@@ -1068,6 +1192,9 @@ define ([], function () {
 
 	_.anyOf = _.brkEach (_.identity) (_.identity);
 
+	// This is probably incorrect.
+	_.applyDown = _.breakDown (_.apply);
+
 	_.atOn = _.flip (_.at);
 
 	_.breakIfTrue = _.breakIf (_.identity);
@@ -1108,7 +1235,12 @@ define ([], function () {
 
 	_.interjectDown = _.breakDown (_.interject);
 
+	// The suffix 'Tnl' indicates an instance of the #tunnel pattern.
+	_.logTnl = _.tunnel (console.log);
+
 	_.mapOn = _.flip (_.map);
+
+	_.matchOn = _.flip (_.match);
 
 	_.pipeDown = _.breakDown (_.pipe);
 
