@@ -398,6 +398,8 @@ define ([], function () {
 
 	_.concat2 = (str1) => (str2) => StrProto.concat (_.vowStr (str1), _.vowStr (str2));
 
+	_.conjugate = (fn1) => (inverseFn1) => (fn2) => _.compose ([fn1, fn2, inverseFn1]);
+
 	_.constant = (val) => () => val;
 
 	_.constrainedArrayLength = (len1) => function (ary2) {
@@ -558,6 +560,8 @@ define ([], function () {
 
 	_.false = (val) => false;
 
+	_.filter;
+
 	bird ('pipe2On') ('finch');
 
 	_.finite = (val) => _.isFinite (val) && ! _.isNaN (parseFloat (val));
@@ -585,6 +589,11 @@ define ([], function () {
 				return breaker;
 			}
 		};
+	};
+
+	// Rename function.
+	_.generalizedConjugate = (op) => (inverse) => (val1) => function (val2) {
+		return _.vowFn (op) (op (val1) (val2)) (_.vowFn (inverse) (val1));
 	};
 
 	_.get = (key) => (val) => _.isArray (val) ? val [_.vowInt (key)] : (_.vowObj (val)) [_.vowStr (key)];
@@ -631,8 +640,7 @@ define ([], function () {
 	_.makePred = (val) => _.isFunction (val) ? val : _.asPred (val);
 	_.makeFn = (val) => _.isFunction (val) ? val : _.thunk1 (val);
 
-	// Change fn's name.
-	_.iffWith = (checks) => (results) => function (val) {
+	_.ifThenApply = (checks) => (results) => function (val) {
 		var len1 = (_.vowAry (checks)).length,
 				len2 = (_.vowAry (results)).length;
 
@@ -739,6 +747,10 @@ define ([], function () {
 
 	_.interject = (fns) => _.do (_.push (_.identity) (fns));
 
+	// functional.js uses 'invoke' to represent the mapping of an object's method.
+	// Perhaps I should use this word for some other purpose.
+	alias ('map') ('invoke');
+
 	_.isArray = (val) => nativeIsArray (val) || toString.call (val) == '[object Array]';
 
 	_.isBoolean = (val) => (val === true ||
@@ -799,7 +811,10 @@ define ([], function () {
 
 	_.mapOnto = (itrs) => (val) => _.map (_.callOn (val)) (_.vowAry (itrs));
 
-	_.match = (pattern) => (str) => new RegExp (_.vowStr (pattern)) .test (str);
+	//_.match = (pattern) => (str) => new RegExp (_.vowStr (pattern)) .test (str);
+	_.match = (pattern) => (flags) => function (str) {
+		return new RegExp (pattern, flags). test (str);
+	};
 	_.matches = (pattern) => (str) => new RegExp (_.vowStr (pattern)).test (_.vowStr (str));
 
 	_.max = (nbrs) => Math.max.apply (null, _.vowAry (nbrs));
@@ -846,11 +861,16 @@ define ([], function () {
 
 	_.null = (val) => null;
 
+	_.objectify = (labels) => (vals) => _.putAll (labels) (vals) ({}); 
+
 	_.once = _.nTimes (1);
 	
 	alias ('replaceFirst') ('onHead');
 
 	_.onTail = (fn) => (ary) => [_.head (_.vowAry (ary)), _.vowFn (fn) (_.tail (ary))];
+
+	// Consider renaming the following fn.
+	_.parasitize = (fn1) => (fn2) => (val) => _.vowFn (_.vowFn (fn1) (val)) (_.vowFn (fn2) (val));
 
 	_.partialMap = (idxs) => (itr) => function (val) {
 		_.vowAry (idxs); _.vowFn (itr); _.vowObj (val);
@@ -986,6 +1006,8 @@ define ([], function () {
 		return result;
 	};
 
+	combinator ('parasitize') ('S');
+
 	_.second = (ary) => (_.vowAry (ary)) [1];
 
 	alias ('sequence') ('seq');
@@ -1007,6 +1029,7 @@ define ([], function () {
 
 	_.slice = (bounds) => function (val) {
 		_.vowWith (_.or2 (_.isArray) (_.isString)) ('Input must be a string or array.') (val);
+		var len, lb, ub;
 		if (_.isNumber (bounds)) {
 			len = 1;
 			lb = bounds;
@@ -1025,6 +1048,8 @@ define ([], function () {
 	alias ('anyOf') ('someOf');
 
 	_.split = (mrk) => (str) => StrProto.split.call (_.vowStr (str), _.vowStr (mrk));
+
+	bird ('parasitize') ('starling');
 
 	alias ('thunk1') ('store');
 
@@ -1061,6 +1086,8 @@ define ([], function () {
 	_.times = (intg) => _.eachOn (_.range ([_.vowInt (intg)]));
 
 	_.toLC = (str) => (_.vowStr (str)).toLowerCase ();
+
+	_.toNbr = (val) => (+ val);
 
 	_.toUC = (str) => (_.vowStr (str)).toUpperCase ();
 
@@ -1115,6 +1142,11 @@ define ([], function () {
 			(obj));
 
 	_.vacant = (val) => _.isNull (val) || _.isUndefined (val) || _.isNaN (val);
+
+	// Provide a permanent name for the following fn.
+	_.temp1 = (a) => (b) => (c) => c (a) (b);
+	combinator ('temp1') ('V');
+	bird ('temp1') ('vireo');
 
 	// Consider implementing a system such that
 	// (1) a call-series of set length requires a fn's name to be suffixed
@@ -1306,6 +1338,7 @@ define ([], function () {
 	//_.goldfinch;
 	//_.hummingbird;
 	//_.jay;
+	//_.kestrel = (a) => (b) => a; // related to kite and _.tunnel
 	//_.lark = (a) => (b) => a (b (b)); // L
 	//_.mockingbird = (a) => a (a); // M
 	//// M2
