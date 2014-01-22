@@ -438,7 +438,7 @@ define ([], function () {
 
 	alias ('env') ('continueWith');
 
-	_.copy = function (val) {
+	_.deepCopy = function (val) {
 		(_.vow (_.or ([_.not (_.isObject), _.isArray, _.isHash, _.isFunction]) (val))
 		 ('Only arrays and generic objects are permissible'));
 
@@ -451,7 +451,7 @@ define ([], function () {
 		if (_.isArray (val)) {
 			i = 0; len = val.length; result = [];
 			for (; i < len; i++) {
-				result.push (_.copy (val [i]));
+				result.push (_.deepCopy (val [i]));
 			}
 			return result;
 		}
@@ -459,7 +459,7 @@ define ([], function () {
 		result = {};
 		for (i in val) {
 			if (_.has (i) (val)) {
-				result [i] = _.copy (val [i]);
+				result [i] = _.deepCopy (val [i]);
 			}
 		}
 		return result;
@@ -511,7 +511,7 @@ define ([], function () {
 
 	alias ('replaceFirst') ('drag');
 
-	_.drop = (intg) => (ary) => (_.copy (_.vowAry (ary))).slice (_.vowNNeg (intg));
+	_.drop = (intg) => (ary) => (_.deepCopy (_.vowAry (ary))).slice (_.vowNNeg (intg));
 
 	_.duplicate = (count) => function (val) {
 		var i = 0, len = _.vowInt (count), result = [];
@@ -623,7 +623,7 @@ define ([], function () {
 	// FN = _.identity; MONAD = _.identity closed over an incrementing variable
 	// a default result?
 	// _.if = ... [like _.true]
-	_.iff = (conditions) => function (results) {
+	_.if = (conditions) => function (results) {
 		var i = -1;
 		// this might be an example of a monad pattern
 		var itr = function (val) {
@@ -633,6 +633,9 @@ define ([], function () {
 		_.brkEach (_.identity) (itr) (_.vowAry (conditions));
 		return (_.vowAry (results)) [i];
 	};
+
+	// Should I rename this fn '_.ifApply'?
+	_.iff = (pred) => (trueFn) => (falseFn) => (val) => pred (val) ? trueFn (val) : falseFn (val);
 
 	//_.iffIs = (vals) => (results) => _.iffWith (_.map (_.asPred) (_.vowAry (vals))) (_.vowAry (results));
 	_.iffIs = (vals) => (results) => _.iffWith () (_.map (_.asPred) (_.vowAry (vals))) (_.map (_.thunk1) (_.vowAry (results)));
@@ -737,10 +740,10 @@ define ([], function () {
 				result = new Array (len + 1);
 		result [idx] = addendum;
 		for (i; i < idx; i++) {
-			result [i] = _.copy (ary [i]);
+			result [i] = _.deepCopy (ary [i]);
 		}
 		for (i = idx + 1; i <= len; i++) {
-			result [i] = _.copy (ary [i - 1]);
+			result [i] = _.deepCopy (ary [i - 1]);
 		}
 		return result;
 	};
@@ -905,7 +908,7 @@ define ([], function () {
 	_.pluckAll = (attrs) => (val) => _.mapOnto (_.map (_.pluck) (_.vowAry (attrs))) (val);
 
 	_.pop = function (ary) {
-		var result = _.copy (_.vowAry (ary));
+		var result = _.deepCopy (_.vowAry (ary));
 		result.pop ();
 		return result;
 	};
@@ -917,23 +920,23 @@ define ([], function () {
 	_.pull2 = (val1) => (val2) => (val3) => _.vowFn (_.vowFn (val2) (val3)) (val1);
 
 	_.push = (val) => function (ary) {
-		var result = _.copy (_.vowAry (ary));
+		var result = _.deepCopy (_.vowAry (ary));
 		result.push (val);
 		return result;
 	};
 
 	_.put = (addendum) => (key) => function (val) {
-		var result = _.copy (_.vowObj (val));
+		var result = _.deepCopy (_.vowObj (val));
 		var check = _.isGuardSet () ?
 			(_.isArray (val) ? _.vowInt : _.vowStr) :
 			_.identity;
-		var idx = _.copy (check (key));
+		var idx = _.deepCopy (check (key));
 		result [idx] = addendum;
 		return result;
 	};
 
 	_.putAll = (addenda) => (keys) => function (val) {
-		var result = _.copy (_.vowObj (val)),
+		var result = _.deepCopy (_.vowObj (val)),
 				len1 = _.arrayLength (addenda),
 				len2 = _.constrainedArrayLength (keys),
 				i = 0;
@@ -1013,19 +1016,24 @@ define ([], function () {
 	alias ('sequence') ('seq');
 
 	_.shift = function (ary) {
-		var result = _.copy (_.vowAry (ary));
+		var result = _.deepCopy (_.vowAry (ary));
 		result.shift ();
 		return result;
 	};
 
 	_.shift2x = function (ary) {
-		var result = _.copy (_.vowAry (ary));
+		var result = _.deepCopy (_.vowAry (ary));
 		result.shift ();
 		result.shift ();
 		return result;
 	};
 
 	_.sign = (nbr) => _.vowNbr (nbr) < 0 ? -1 : (nbr > 0 ? 1 : 0);
+
+	// Confirm that this is appropriate.
+	//_.isEnumerable => (val) => typeof val.length === 'number';
+	_.isEnumerable = (val) => _.isArray (val) || _.isString (val);
+	// _.vowEnum;
 
 	_.slice = (bounds) => function (val) {
 		_.vowWith (_.or2 (_.isArray) (_.isString)) ('Input must be a string or array.') (val);
