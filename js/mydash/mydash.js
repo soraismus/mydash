@@ -374,6 +374,8 @@ define ([], function () {
 
 	alias ('call') ('cascade');
 
+	alias ('thread') ('chain');
+
 	_.charAt = (idx) => (str) => nativeCharAt.call (_.vowStr (str), _.vowInt (idx));
 
 	_.compose = (fns) => (val) => _.rreduceWith (val) (_.callOn) (fns);
@@ -1071,6 +1073,12 @@ define ([], function () {
 
 	_.tap = (fns) => _.do (_.push (_.identity) (fns));
 
+	_.thread = (val) => _.map (_.callOn (val));
+
+	alias ('thread') ('threadFirst');
+
+	_.threadLast = (val) => (fns) => _.callOn (val) (_.pipe (fns));
+
 	_.through = (fn) => _.reduceWith (fn) (_.call2);
 
 	_.throwError = function (msg) {
@@ -1174,6 +1182,9 @@ define ([], function () {
 		_.vow (pred (val)) (msg);
 		return val;
 	};
+
+	_.while;
+	_.until;
 
 	_.zip = (itr) => (ary1) => function (ary2) {
 		_.vowFn (itr);
