@@ -875,7 +875,7 @@ define ([], function () {
 	_.onTail = (fn) => (ary) => [_.head (_.vowAry (ary)), _.vowFn (fn) (_.tail (ary))];
 
 	// Consider renaming the following fn.
-	_.parasitize = (fn1) => (fn2) => (val) => _.vowFn (_.vowFn (fn1) (val)) (_.vowFn (fn2) (val));
+	_.parasitize = (fn1) => (fn2) => (val) => _.vowFn (_.vowFn (fn1) (_.vowFn (fn2) (val))) (val);
 
 	_.partialMap = (idxs) => (itr) => function (val) {
 		_.vowAry (idxs); _.vowFn (itr); _.vowObj (val);
@@ -1059,7 +1059,8 @@ define ([], function () {
 
 	_.split = (mrk) => (str) => StrProto.split.call (_.vowStr (str), _.vowStr (mrk));
 
-	bird ('parasitize') ('starling');
+	// bird combinator
+	_.starling = (fn1) => (fn2) => (val) => _.vowFn (_.vowFn (fn1) (val)) (_.vowFn (fn2) (val));
 
 	alias ('thunk1') ('store');
 
