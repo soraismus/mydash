@@ -1,6 +1,0 @@
-launch_in_dev:
-- Firefox
-test_page: test/jasmine/index.html
-src_files:
-- js/mydash/**
-- test/jasmine/spec/mydash/mydash-spec.js
